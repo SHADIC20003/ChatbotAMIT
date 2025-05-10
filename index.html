@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chatbot</title>
+    <!-- Link to Google Fonts -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap"
+    />
+    <style>
+      /* General Styles */
+      body {
+        font-family: 'Roboto', sans-serif;
+        background-color: #121212; /* Dark background */
+        color: #e0e0e0; /* Light text color */
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden; /* Prevent horizontal scrollbar */
+      }
+
+      .header {
+        color: #e0e0e0; /* Light text color */
+        text-align: center;
+        padding: 20px;
+        border-bottom: 1px solid #333;
+        background-color: #1f1f1f;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      }
+
+      .header h1 {
+        font-size: 2em;
+        font-weight: 500;
+        margin: 0;
+        letter-spacing: 1px;
+        color: #e0e0e0;
+        text-transform: uppercase;
+      }
+
+      .chat-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+        overflow: hidden;
+      }
+
+      .chat-history {
+        flex: 1;
+        overflow-y: auto;
+        background-color: #1f1f1f;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid #333;
+        margin-bottom: 10px;
+        max-height: calc(100vh - 200px); /* Adjust max-height as needed */
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .message {
+        margin-bottom: 10px;
+        padding: 10px;
+        border-radius: 12px;
+        max-width: 70%;
+        display: inline-block;
+        word-wrap: break-word;
+        box-sizing: border-box;
+        position: relative;
+        font-size: 1em;
+      }
+
+      .message.user {
+        background-color: #333; /* Slightly lighter gray for user messages */
+        color: #e0e0e0;
+        margin-left: auto;
+        text-align: left; /* Ensure text is left aligned */
+      }
+
+      .message.chatbot {
+        background-color: #003366; /* Dark blue for chatbot messages */
+        color: #e0e0e0;
+        text-align: left; /* Ensure text is left aligned */
+      }
+
+      .timestamp {
+        font-size: 0.8em;
+        color: #888;
+        margin-bottom: 5px;
+        display: block;
+      }
+
+      .text {
+        font-size: 1em;
+      }
+
+      /* Input and Buttons */
+      .input-container {
+        display: flex;
+        align-items: stretch; /* Ensure all items take up the full height */
+      }
+
+      textarea {
+        flex: 1;
+        height: 70px; /* Adjust height to match the combined height of buttons */
+        padding: 10px;
+        border: 1px solid #333;
+        border-radius: 5px;
+        background-color: #1f1f1f;
+        color: #e0e0e0;
+        resize: none;
+        box-sizing: border-box;
+        margin-right: 10px; /* Space between input and buttons */
+        font-size: 1em;
+      }
+
+      .button-container {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+
+      button {
+        background-color: #333; /* Dark gray */
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 10px;
+        cursor: pointer;
+        font-size: 1em;
+        font-family: 'Roboto', sans-serif; /* Modern font */
+        box-sizing: border-box;
+        width: 100%; /* Full width */
+        margin-bottom: 5px; /* Space between buttons */
+        transition: background-color 0.3s ease;
+      }
+
+      button:hover {
+        background-color: #444; /* Slightly lighter gray on hover */
+      }
+
+      /* Modern scrollbar styling */
+      .chat-history::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .chat-history::-webkit-scrollbar-thumb {
+        background: #333;
+        border-radius: 10px;
+      }
+
+      .chat-history::-webkit-scrollbar-track {
+        background: #1f1f1f;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>Chatbot</h1>
+    </div>
+    <div class="chat-container">
+      <div id="chat-history" class="chat-history"></div>
+      <div class="input-container">
+        <textarea
+          id="user-input"
+          placeholder="Type your message here..."
+        ></textarea>
+        <div class="button-container">
+          <button id="submit-btn">Submit</button>
+          <button id="new-chat-btn">New Chat</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const submitBtn = document.getElementById('submit-btn');
+        const newChatBtn = document.getElementById('new-chat-btn');
+        const userInput = document.getElementById('user-input');
+        const chatHistory = document.getElementById('chat-history');
+
+        submitBtn.addEventListener('click', () => {
+          if (userInput.value.trim() === '') return;
+          sendMessage(userInput.value);
+          userInput.value = '';
+        });
+
+        userInput.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            if (userInput.value.trim() !== '') {
+              sendMessage(userInput.value);
+              userInput.value = '';
+            }
+          }
+        });
+
+        newChatBtn.addEventListener('click', () => {
+          fetch('/new_chat', { method: 'POST' })
+            .then((response) => response.json())
+            .then((data) => {
+              chatHistory.innerHTML = '';
+              updateChatHistory(data.chat_history);
+            });
+        });
+
+        function sendMessage(message) {
+          fetch('/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ message }),
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              updateChatHistory(data.chat_history);
+            });
+        }
+
+        function updateChatHistory(history) {
+          chatHistory.innerHTML = '';
+          history.forEach((item) => {
+            const messageElement = document.createElement('div');
+            messageElement.className = `message ${item.sender}`;
+            messageElement.innerHTML = `
+                        <div class="timestamp">${item.timestamp}</div>
+                        <div class="text">${item.text}</div>
+                    `;
+            chatHistory.appendChild(messageElement);
+          });
+          chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+      });
+    </script>
+  </body>
+</html>
